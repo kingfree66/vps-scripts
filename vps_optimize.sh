@@ -122,6 +122,7 @@ net.ipv4.tcp_max_syn_backlog = 65535
 net.ipv4.tcp_fin_timeout = 30
 net.ipv4.tcp_keepalive_time = 1200
 net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fastopen = 3
 net.ipv4.ip_local_port_range = 10000 65000
 net.ipv4.tcp_slow_start_after_idle = 0
 fs.file-max = 1000000
