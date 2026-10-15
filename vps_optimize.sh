@@ -7,9 +7,11 @@
 #   3. 设置时区
 #   4. 开启 BBR + 内核网络参数优化
 #   5. 提高文件描述符上限
+#   6. NTP 时间同步
+#   7. IPv6 处理（默认禁用，可配置）
 #
 # 用法：sudo bash vps_optimize.sh
-# 可在下方"可配置项"修改 DNS 与时区
+# 可在下方"可配置项"修改 DNS、时区与 IPv6 策略
 
 set -u
 
@@ -17,6 +19,7 @@ set -u
 DNS1="1.1.1.1"
 DNS2="8.8.8.8"
 TIMEZONE="Asia/Shanghai"   # 可改为 Asia/Taipei、UTC 等
+DISABLE_IPV6="yes"         # 是否禁用 IPv6（yes/no）
 # ------------------------------------------
 
 RED='\033[0;31m'
@@ -148,6 +151,74 @@ EOF
     ok "nofile 上限已设为 1000000（重新登录后生效）"
 }
 
+setup_ntp() {
+    echo "---------- NTP 时间同步 ----------"
+    local os="unknown"
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        os="$ID"
+    fi
+    if ! command_exists chronyd && ! command_exists chronyc; then
+        log "安装 chrony..."
+        case "$os" in
+            ubuntu|debian|armbian|kali)
+                apt-get update -qq && apt-get install -y -q chrony ;;
+            centos)
+                (yum install -y -q chrony) 2>/dev/null || dnf install -y -q chrony ;;
+            fedora|rhel|almalinux|rocky|ol|amzn)
+                dnf install -y -q chrony ;;
+            arch|manjaro)
+                pacman -S --noconfirm -q chrony ;;
+            *)
+                warn "未知发行版 [$os]，将尝试 systemd-timesyncd" ;;
+        esac
+    fi
+    if command_exists chronyd; then
+        if has_systemctl; then
+            systemctl enable --now chronyd >/dev/null 2>&1 || \
+            systemctl enable --now chrony >/dev/null 2>&1 || true
+        fi
+        sleep 2
+        if command_exists chronyc && chronyc tracking >/dev/null 2>&1; then
+            ok "chrony 运行中"
+            chronyc tracking 2>/dev/null | grep -E "System time|Leap status" || true
+        else
+            ok "chrony 已启动"
+        fi
+    elif has_systemctl && systemctl list-unit-files 2>/dev/null | grep -q "systemd-timesyncd"; then
+        systemctl enable --now systemd-timesyncd >/dev/null 2>&1 || true
+        timedatectl set-ntp true >/dev/null 2>&1 || true
+        ok "已启用 systemd-timesyncd"
+    else
+        warn "未找到可用的 NTP 方案，请手动配置"
+    fi
+}
+
+handle_ipv6() {
+    echo "---------- IPv6 ----------"
+    if [ "$DISABLE_IPV6" = "yes" ]; then
+        log "按配置禁用 IPv6..."
+        cat > /etc/sysctl.d/99-vps-ipv6.conf <<'EOF'
+# 由 vps_optimize.sh 生成
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+EOF
+        sysctl --system >/dev/null 2>&1 || true
+        if [ ! -f /proc/net/if_inet6 ]; then
+            ok "IPv6 已禁用"
+        else
+            warn "IPv6 未完全禁用，可能需要重启后生效"
+        fi
+    else
+        rm -f /etc/sysctl.d/99-vps-ipv6.conf
+        sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null 2>&1 || true
+        sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null 2>&1 || true
+        ok "保持 IPv6 启用"
+    fi
+}
+
 main() {
     need_root
     echo "============================================================"
@@ -157,6 +228,8 @@ main() {
     echo " 3. 时区 → ${TIMEZONE}"
     echo " 4. BBR + 内核网络优化"
     echo " 5. 文件描述符上限"
+    echo " 6. NTP 时间同步"
+    echo " 7. IPv6 处理（当前：$([ "$DISABLE_IPV6" = "yes" ] && echo 禁用 || echo 保持)）"
     echo "============================================================"
     read -rp "确认执行？输入 y 继续 [y/N]: " confirm
     case "$confirm" in
@@ -169,6 +242,8 @@ main() {
     set_timezone
     tune_kernel
     raise_limits
+    setup_ntp
+    handle_ipv6
     echo
     ok "全部完成！建议重启一次使所有优化完全生效。"
 }
