@@ -215,7 +215,7 @@ ssl_ip() {
     "$HOME/.acme.sh/acme.sh" --set-default-ca --server letsencrypt >/dev/null 2>&1
     log "正在为 IP $ip 签发证书（约 6 天有效期，自动续期）..."
     if "$HOME/.acme.sh/acme.sh" --issue -d "$ip" --standalone \
-        --server letsencrypt --force; then
+        --server letsencrypt --certificate-profile shortlived --days 6 --force; then
         certdir="/root/cert/ip"
         mkdir -p "$certdir"
         "$HOME/.acme.sh/acme.sh" --installcert -d "$ip" \
@@ -229,7 +229,7 @@ ssl_ip() {
         "$HOME/.acme.sh/acme.sh" --upgrade --auto-upgrade >/dev/null 2>&1
         ok "IP 证书配置成功（acme.sh 定时任务自动续期）"
     else
-        warn "证书签发失败：请确认 80 端口开放且可从公网访问"
+        warn "证书签发失败：请确认 80 端口开放且可从公网访问（IP 证书走 shortlived 通道，需 acme.sh 为最新版）"
     fi
 }
 
