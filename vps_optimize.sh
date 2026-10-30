@@ -6,6 +6,7 @@
 #   2. DNS 改为 1.1.1.1 / 8.8.8.8 并锁定
 #   3. 开启 TCP Fast Open
 #   4. 安装 curl（如缺失）
+#   5. 检查防火墙并放行端口（调用 disable_firewall.sh）
 #
 # 用法：sudo bash vps_optimize.sh
 
@@ -57,6 +58,14 @@ if ! command -v curl >/dev/null 2>&1; then
     apt update && apt install -y curl
 else
     echo "curl 已安装，跳过"
+fi
+
+echo ""
+echo "========== 5/5 检查防火墙并放行端口 =========="
+if command -v curl >/dev/null 2>&1; then
+    bash <(curl -fsSL https://raw.githubusercontent.com/kingfree66/vps-scripts/main/disable_firewall.sh)
+else
+    echo "curl 不可用，跳过防火墙检查"
 fi
 
 echo ""
