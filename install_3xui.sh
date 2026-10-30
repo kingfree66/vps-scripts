@@ -10,7 +10,7 @@ set -u
 
 # ---------------- 可配置项 ----------------
 REPO="MHSanaei/3x-ui"          # 官方仓库；如需镜像可改为镜像仓库名
-VERSION="v2.9.3"               # 固定版本，对应 GitHub release tag
+VERSION="v3.11.0"              # v3.x 起端口冲突检测区分 TCP/UDP，支持 VLESS(TCP 443)+Hy2(UDP 443) 面板直接共存
 INSTALL_DIR="/usr/local/x-ui"
 SERVICE_FILE="/etc/systemd/system/x-ui.service"
 # ------------------------------------------
