@@ -136,6 +136,16 @@ install_xui() {
     ok "3x-ui 文件安装完成：$INSTALL_DIR"
 }
 
+install_mgmt_script() {
+    log "安装 x-ui 管理脚本..."
+    if curl -fsSL -o /usr/bin/x-ui "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh"; then
+        chmod +x /usr/bin/x-ui
+        ok "管理脚本已安装（命令：x-ui，支持 start/stop/restart/status/settings/update 等）"
+    else
+        warn "管理脚本下载失败，跳过（不影响面板运行）"
+    fi
+}
+
 write_service() {
     if ! has_systemctl; then
         warn "未检测到 systemd，跳过服务安装（需手动启动 $INSTALL_DIR/x-ui）"
@@ -263,6 +273,7 @@ main() {
 
     install_deps "$os"
     install_xui "$arch"
+    install_mgmt_script
     write_service || true
     setup_credentials
 
