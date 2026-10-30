@@ -18,13 +18,19 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-echo "========== 1/4 开启 BBR+FQ =========="
+# 前置：确保 curl 可用（后续步骤需要用它下载）
+if ! command -v curl >/dev/null 2>&1; then
+    echo "未检测到 curl，正在安装..."
+    apt update && apt install -y curl
+fi
+
+echo "========== 1/5 开启 BBR+FQ =========="
 echo -e "net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr" > /etc/sysctl.d/99-bbr.conf
 sysctl --system >/dev/null 2>&1
 sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc
 
 echo ""
-echo "========== 2/4 修改 DNS 为 1.1.1.1 和 8.8.8.8 并锁定 =========="
+echo "========== 2/5 修改 DNS 为 1.1.1.1 和 8.8.8.8 并锁定 =========="
 if [ -L /etc/resolv.conf ]; then
     # systemd-resolved 接管（软链接），用 resolved 配置（持久化，无需 chattr）
     mkdir -p /etc/systemd/resolved.conf.d
@@ -44,7 +50,7 @@ echo "当前 DNS："
 cat /etc/resolv.conf
 
 echo ""
-echo "========== 3/4 开启 TCP Fast Open =========="
+echo "========== 3/5 开启 TCP Fast Open =========="
 if ! grep -q "^net.ipv4.tcp_fastopen=3" /etc/sysctl.conf 2>/dev/null; then
     echo "net.ipv4.tcp_fastopen=3" >> /etc/sysctl.conf
 fi
@@ -52,7 +58,7 @@ sysctl -p >/dev/null 2>&1
 sysctl net.ipv4.tcp_fastopen
 
 echo ""
-echo "========== 4/4 安装 curl（如缺失） =========="
+echo "========== 4/5 安装 curl（如缺失） =========="
 if ! command -v curl >/dev/null 2>&1; then
     echo "未检测到 curl，正在安装..."
     apt update && apt install -y curl
